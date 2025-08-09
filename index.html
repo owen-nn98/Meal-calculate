@@ -3,17 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Office Meal Cost Calculator - Mobile</title>
+    <title>Office Meal Cost Calculator - Teal Theme</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    
     <style>
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f0f9ff;
         }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #cffafe;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #22d3ee;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #0891b2;
+        }
+
+        /* Hide number input arrows */
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button {
             -webkit-appearance: none;
@@ -29,7 +48,7 @@
         <div class="text-center mb-6">
             <h1 class="text-2xl font-extrabold text-cyan-800">Office Meal Cost Calculator</h1>
             <p class="text-gray-500 mt-2 text-sm">
-                Cre: Mr.OWEN.
+                Enter details to calculate each person's share.
             </p>
         </div>
 
@@ -42,19 +61,19 @@
             <div>
                 <label for="mealType" class="text-gray-600 font-medium mb-1 block">Meal Type:</label>
                 <select id="mealType" class="w-full p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    <option value="Breakfast">Breakfast</option>
                     <option value="Lunch">Lunch</option>
                     <option value="Dinner">Dinner</option>
-                    <option value="Breakfast">Breakfast</option>
                 </select>
             </div>
             <div>
                 <label for="totalFoodBill" class="text-gray-600 font-medium mb-1 block">Total Food Bill (KIP):</label>
-                <input type="text" id="totalFoodBill" value="0"
+                <input type="number" id="totalFoodBill" value="0"
                        class="w-full p-3 border border-gray-300 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-cyan-500">
             </div>
             <div>
                 <label for="officeBudgetPerPerson" class="text-gray-600 font-medium mb-1 block">Office Budget/Person (KIP):</label>
-                <input type="text" id="officeBudgetPerPerson" value="0"
+                <input type="number" id="officeBudgetPerPerson" value="0"
                        class="w-full p-3 border border-gray-300 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-cyan-500">
             </div>
         </div>
@@ -158,14 +177,16 @@
             return `${day}-${month}-${year}`;
         }
 
+        // ປັບປຸງໃຫ້ຍັງມີ formatNumber ໄວ້ສຳລັບສະແດງຜົນເທົ່ານັ້ນ
         function formatNumber(num) {
             if (isNaN(parseFloat(num))) return '0';
             return new Intl.NumberFormat('en-US').format(Math.round(num));
         }
 
-        function unformatNumber(str) {
-            return parseFloat(String(str).replace(/,/g, '')) || 0;
-        }
+        // ເອົາຟັງຊັນ unformatNumber ອອກ ເພາະບໍ່ຈຳເປັນແລ້ວສຳລັບ input type="number"
+        // function unformatNumber(str) {
+        //     return parseFloat(String(str).replace(/,/g, '')) || 0;
+        // }
 
         const transactionDateInput = document.getElementById('transactionDate');
         const mealTypeInput = document.getElementById('mealType');
@@ -211,7 +232,7 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="text-xs font-medium text-gray-500">Drink Cost (KIP)</label>
-                        <input type="text" value="${formatNumber(drinkCost)}"
+                        <input type="number" value="${drinkCost}"
                                class="w-full p-2 border-b border-gray-300 text-sm text-right focus:outline-none focus:border-cyan-500 drink-cost-input">
                     </div>
                     <div>
@@ -233,14 +254,8 @@
 
             nameInput.addEventListener('input', calculate);
 
-            drinkCostInput.addEventListener('input', (event) => {
-                const unformatted = unformatNumber(event.target.value);
-                event.target.value = formatNumber(unformatted);
-                calculate();
-            });
-            drinkCostInput.addEventListener('focus', (event) => { event.target.value = unformatNumber(event.target.value); });
-            drinkCostInput.addEventListener('blur', (event) => { event.target.value = formatNumber(unformatNumber(event.target.value)); });
-
+            drinkCostInput.addEventListener('input', calculate);
+            
             deleteBtn.addEventListener('click', () => {
                 participantItem.remove();
                 calculate();
@@ -249,16 +264,18 @@
             calculate();
         }
 
-        function setupGlobalInput(inputElement) {
-            inputElement.value = formatNumber(unformatNumber(inputElement.value));
-            inputElement.addEventListener('input', () => calculate());
-            inputElement.addEventListener('focus', (event) => { event.target.value = unformatNumber(event.target.value); });
-            inputElement.addEventListener('blur', (event) => { event.target.value = formatNumber(unformatNumber(event.target.value)); });
-        }
+        // ເອົາ setupGlobalInput ອອກ ເພາະບໍ່ຈຳເປັນແລ້ວສຳລັບ input type="number"
+        // function setupGlobalInput(inputElement) {
+        //     inputElement.value = formatNumber(unformatNumber(inputElement.value));
+        //     inputElement.addEventListener('input', () => calculate());
+        //     inputElement.addEventListener('focus', (event) => { event.target.value = unformatNumber(event.target.value); });
+        //     inputElement.addEventListener('blur', (event) => { event.target.value = formatNumber(unformatNumber(event.target.value)); });
+        // }
 
         function calculate() {
-            const totalFoodBill = unformatNumber(totalFoodBillInput.value);
-            const officeBudgetPerPerson = unformatNumber(officeBudgetPerPersonInput.value);
+            // ປັບປຸງການດຶງຄ່າ: ໃຊ້ .value ໂດຍກົງ
+            const totalFoodBill = parseFloat(totalFoodBillInput.value) || 0;
+            const officeBudgetPerPerson = parseFloat(officeBudgetPerPersonInput.value) || 0;
             
             const participantItems = participantsList.querySelectorAll('.bg-white');
             const totalParticipants = participantItems.length;
@@ -266,7 +283,8 @@
             let totalIndividualDrinksCost = 0;
             participantItems.forEach(item => {
                 const drinkCostInput = item.querySelector('.drink-cost-input');
-                totalIndividualDrinksCost += unformatNumber(drinkCostInput.value);
+                // ປັບປຸງການດຶງຄ່າ: ໃຊ້ .value ໂດຍກົງ
+                totalIndividualDrinksCost += parseFloat(drinkCostInput.value) || 0;
             });
 
             const officeTotalBudget = officeBudgetPerPerson * totalParticipants;
@@ -279,7 +297,7 @@
             
             participantItems.forEach(item => {
                 const drinkCostInput = item.querySelector('.drink-cost-input');
-                const drinkCost = unformatNumber(drinkCostInput.value);
+                const drinkCost = parseFloat(drinkCostInput.value) || 0;
                 const totalDue = sharedCostPerPerson + drinkCost;
                 
                 item.querySelector('.shared-cost-display').textContent = formatNumber(sharedCostPerPerson);
@@ -299,6 +317,7 @@
         function generateReport() {
             const date = transactionDateInput.value;
             const mealType = mealTypeInput.value;
+            // ປັບປຸງການດຶງຄ່າ: ໃຊ້ .value ໂດຍກົງ
             const totalFoodBill = totalFoodBillInput.value;
             const officeBudgetPerPerson = officeBudgetPerPersonInput.value;
             const excessFoodCost = excessFoodCostSpan.textContent;
@@ -323,8 +342,8 @@
                 <div class="mb-4">
                     <p class="font-bold text-gray-700">Date: <span class="font-normal">${date}</span></p>
                     <p class="font-bold text-gray-700">Meal Type: <span class="font-normal">${mealType}</span></p>
-                    <p class="font-bold text-gray-700">Total Food Bill: <span class="font-normal">${totalFoodBill} KIP</span></p>
-                    <p class="font-bold text-gray-700">Office Budget/Person: <span class="font-normal">${officeBudgetPerPerson} KIP</span></p>
+                    <p class="font-bold text-gray-700">Total Food Bill: <span class="font-normal">${formatNumber(totalFoodBill)} KIP</span></p>
+                    <p class="font-bold text-gray-700">Office Budget/Person: <span class="font-normal">${formatNumber(officeBudgetPerPerson)} KIP</span></p>
                 </div>
                 <div class="mb-4 bg-cyan-50 p-3 rounded-lg border-l-4 border-cyan-400">
                     <p class="font-bold text-cyan-800">Excess Food Cost: <span class="font-normal text-gray-700">${excessFoodCost} KIP</span></p>
@@ -346,7 +365,8 @@
             const participantsToSave = [];
             participantItems.forEach(item => {
                 const name = item.querySelector('input[type="text"]').value;
-                const drinkCost = unformatNumber(item.querySelector('.drink-cost-input').value);
+                // ປັບປຸງການດຶງຄ່າ: ໃຊ້ .value ໂດຍກົງ
+                const drinkCost = parseFloat(item.querySelector('.drink-cost-input').value) || 0;
                 participantsToSave.push({ name, drinkCost });
             });
 
@@ -354,8 +374,9 @@
                 id: Date.now(),
                 date: transactionDateInput.value,
                 mealType: mealTypeInput.value,
-                totalFoodBill: unformatNumber(totalFoodBillInput.value),
-                officeBudgetPerPerson: unformatNumber(officeBudgetPerPersonInput.value),
+                // ປັບປຸງການດຶງຄ່າ: ໃຊ້ .value ໂດຍກົງ
+                totalFoodBill: parseFloat(totalFoodBillInput.value) || 0,
+                officeBudgetPerPerson: parseFloat(officeBudgetPerPersonInput.value) || 0,
                 participants: participantsToSave
             };
 
@@ -364,27 +385,25 @@
             alert('Report saved successfully!');
         }
         
-        // **NEW FUNCTION TO DELETE A REPORT**
         function deleteReport(reportId) {
             if (confirm('Are you sure you want to delete this report?')) {
                 let reports = JSON.parse(localStorage.getItem('mealReports') || '[]');
                 reports = reports.filter(report => report.id !== reportId);
                 localStorage.setItem('mealReports', JSON.stringify(reports));
-                displayHistory(); // Refresh the history list
+                displayHistory();
             }
         }
         
-        // Updated displayHistory to include a delete button
         function displayHistory() {
             const reports = JSON.parse(localStorage.getItem('mealReports') || '[]');
-            historyContent.innerHTML = ''; // Clear previous content
+            historyContent.innerHTML = '';
 
             if (reports.length === 0) {
                 historyContent.innerHTML = '<p class="text-center text-gray-500">No saved reports found.</p>';
                 return;
             }
 
-            reports.sort((a, b) => b.id - a.id); // Sort by date descending
+            reports.sort((a, b) => b.id - a.id);
 
             reports.forEach(report => {
                 const reportItem = document.createElement('div');
@@ -402,17 +421,15 @@
                     </div>
                 `;
 
-                // Event listener to load report when clicking on the content
                 const contentArea = reportItem.querySelector('.flex-grow');
                 contentArea.addEventListener('click', () => {
                     loadReport(report);
                     historyModal.classList.add('hidden');
                 });
                 
-                // Event listener for the new delete button
                 const deleteBtn = reportItem.querySelector('.delete-history-btn');
                 deleteBtn.addEventListener('click', (event) => {
-                    event.stopPropagation(); // Prevent the parent click event from firing
+                    event.stopPropagation();
                     const reportId = parseInt(event.currentTarget.dataset.id);
                     deleteReport(reportId);
                 });
@@ -424,10 +441,11 @@
         function loadReport(report) {
             transactionDateInput.value = report.date;
             mealTypeInput.value = report.mealType;
-            totalFoodBillInput.value = formatNumber(report.totalFoodBill);
-            officeBudgetPerPersonInput.value = formatNumber(report.officeBudgetPerPerson);
+            // ປັບປຸງການໂຫຼດຄ່າ: ໂຫຼດຄ່າຕົວເລກໂດຍກົງ
+            totalFoodBillInput.value = report.totalFoodBill;
+            officeBudgetPerPersonInput.value = report.officeBudgetPerPerson;
 
-            participantsList.innerHTML = ''; // Clear current participants
+            participantsList.innerHTML = '';
             participantCounter = 0;
             report.participants.forEach(p => {
                 addParticipantItem(p.name, p.drinkCost);
@@ -442,8 +460,13 @@
                 defaultDate: new Date(),
             });
 
-            setupGlobalInput(totalFoodBillInput);
-            setupGlobalInput(officeBudgetPerPersonInput);
+            // ເອົາການເອີ້ນໃຊ້ setupGlobalInput ອອກ
+            // setupGlobalInput(totalFoodBillInput);
+            // setupGlobalInput(officeBudgetPerPersonInput);
+
+            // ຕັ້ງຄ່າ event listener ໂດຍກົງ
+            totalFoodBillInput.addEventListener('input', calculate);
+            officeBudgetPerPersonInput.addEventListener('input', calculate);
 
             addParticipantBtn.addEventListener('click', () => addParticipantItem());
             saveReportBtn.addEventListener('click', saveReport);
